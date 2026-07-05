@@ -80,6 +80,8 @@ end)
 -- ==========================================
 -- 4. Core Loop (แยกโซน Lobby กับ In-Game)
 -- ==========================================
+local lastRimuruSkillTime = 0 -- ตัวแปรเก็บเวลาดีเลย์สกิล 5 วิ
+
 task.spawn(function()
     while task.wait(1) do
         if not getgenv().AutoLoop then continue end
@@ -97,15 +99,15 @@ task.spawn(function()
                 end
             end)
             
-            task.wait(1.5) -- หน่วงรอให้ตัวละครยืนบนแท่นให้เรียบร้อย
+            task.wait(1.5) 
             
             -- 1. เลือกแมพ RuinedFutureCity
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerSelectedMap"), "RuinedFutureCity")
-            task.wait(2) -- เพิ่มหน่วงเวลา 2 วิ ให้เซิร์ฟเวอร์เปลี่ยนแมพให้เสร็จ
+            task.wait(2) 
             
             -- 2. เลือกความยาก HardDifficulty
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerSelectedDifficulty"), "HardDifficulty")
-            task.wait(2) -- เพิ่มหน่วงเวลา 2 วิ ให้ชัวร์ว่าปรับโหมด Hard แล้วแน่นอน
+            task.wait(2) 
             
             -- 3. กด Start เข้าด่าน
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerQuickstartTeleport"))
@@ -120,6 +122,8 @@ task.spawn(function()
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerVoteToStartMatch"))
             
             local placeRemote = RS:WaitForChild("GenericModules"):WaitForChild("Service"):WaitForChild("Network"):WaitForChild("PlayerPlaceTower")
+            local toggleAbilityRemote = RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerToggleAutoAbility")
+            local activateAbilityRemote = RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerActivateTowerAbility")
             
             -- วาง Yuji
             fireRemote(placeRemote, "162743126:38673", Vector3.new(-602.1862182617188, 0.02558167278766632, -180.89651489257812), 0)
@@ -133,8 +137,14 @@ task.spawn(function()
             fireRemote(placeRemote, "162743126:47563", Vector3.new(-607.68212890625, 0.02553214505314827, -168.1455078125), 0)
             task.wait(0.5)
             
-            -- ออโต้สกิล Rimuru (อิงจาก ID: 107)
-            fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerToggleAutoAbility"), "107")
+            -- เปิด Auto Skill Rimuru (Toggle)
+            fireRemote(toggleAbilityRemote, "107")
+            
+            -- สแปมกด Skill Rimuru (Activate) ทุกๆ 5 วินาที
+            if tick() - lastRimuruSkillTime >= 5 then
+                fireRemote(activateAbilityRemote, "6")
+                lastRimuruSkillTime = tick() -- รีเซ็ตเวลาใหม่
+            end
             task.wait(0.5)
             
             -- วาง Dragon Gree
@@ -145,13 +155,13 @@ task.spawn(function()
             fireRemote(placeRemote, "162743126:41308", Vector3.new(-596.717529296875, 3.025526762008667, -160.88565063476562))
             task.wait(0.5)
             
-            -- วาง Goku (ตามโค้ดเดิมใช้ Args ซ้ำกับ Red Dragon)
-            fireRemote(placeRemote, "162743126:41308", Vector3.new(-596.717529296875, 3.025526762008667, -160.88565063476562))
+            -- วาง Goku (แก้ไข ID และพิกัดแล้ว)
+            fireRemote(placeRemote, "162743126:48933", Vector3.new(-603.0701293945312, 0.025575950741767883, -177.08416748046875), 0)
             
-            -- หน่วงเวลา 2 วิก่อนรีลูป
+            -- หน่วงเวลา 2 วิก่อนรีลูป ป้องกันเด้งหลุด
             task.wait(2)
             
-            -- ยิง Replay ค้างไว้ตลอดเวลา เมื่อเกมจบครบ 4 รอบตามระบบเกม มันจะเตะกลับ Lobby เอง
+            -- ยิง Replay (กดซ้ำรอบต่อไปตอนจบเกม)
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerVoteReplay"))
         end
     end
