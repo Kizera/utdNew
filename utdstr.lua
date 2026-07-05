@@ -35,12 +35,13 @@ ToggleBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- 2. ฟังก์ชันช่วยยิง Remote แบบปลอดภัย (Safe Fire)
+-- 2. ฟังก์ชันช่วยยิง Remote แบบปลอดภัย (Safe Fire) [แก้บั๊กแล้ว]
 -- ==========================================
 local function fireRemote(remotePath, ...)
+    local args = {...} -- แพ็คข้อมูลเก็บไว้ก่อน
     pcall(function()
         if remotePath then
-            remotePath:FireServer(...)
+            remotePath:FireServer(unpack(args)) -- เอาข้อมูลมาแตกใส่
         end
     end)
 end
