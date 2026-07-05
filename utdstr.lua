@@ -3,6 +3,21 @@ local RS = game:GetService("ReplicatedStorage")
 local Player = Players.LocalPlayer
 
 -- ==========================================
+-- ระบบเซฟการตั้งค่า Auto Farm (ป้องกันสคริปต์ลืมตอนวาร์ป)
+-- ==========================================
+local configName = "UTD_AutoFarm_State.txt"
+if isfile and readfile then
+    if not isfile(configName) then
+        writefile(configName, "OFF")
+    end
+    local savedState = readfile(configName)
+    getgenv().AutoLoop = (savedState == "ON")
+else
+    -- กรณี Executor ไม่รองรับระบบไฟล์
+    getgenv().AutoLoop = getgenv().AutoLoop or false
+end
+
+-- ==========================================
 -- 1. สร้าง GUI เปิด/ปิด
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
@@ -14,40 +29,56 @@ ScreenGui.Parent = game.CoreGui
 ToggleBtn.Parent = ScreenGui
 ToggleBtn.Size = UDim2.new(0, 150, 0, 50)
 ToggleBtn.Position = UDim2.new(0.8, 0, 0.1, 0)
-ToggleBtn.Text = "Auto Farm : OFF"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 20
 ToggleBtn.Draggable = true
 
-getgenv().AutoLoop = false
+-- อัปเดตสีปุ่มตามสถานะที่เซฟไว้
+if getgenv().AutoLoop then
+    ToggleBtn.Text = "Auto Farm : ON"
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+else
+    ToggleBtn.Text = "Auto Farm : OFF"
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+end
 
 ToggleBtn.MouseButton1Click:Connect(function()
     getgenv().AutoLoop = not getgenv().AutoLoop
     if getgenv().AutoLoop then
         ToggleBtn.Text = "Auto Farm : ON"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        if writefile then writefile(configName, "ON") end
     else
         ToggleBtn.Text = "Auto Farm : OFF"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        if writefile then writefile(configName, "OFF") end
     end
 end)
 
 -- ==========================================
--- 2. ฟังก์ชันช่วยยิง Remote แบบปลอดภัย (Safe Fire) [แก้บั๊กแล้ว]
+-- 2. ฟังก์ชันช่วยยิง Remote แบบปลอดภัย
 -- ==========================================
 local function fireRemote(remotePath, ...)
-    local args = {...} -- แพ็คข้อมูลเก็บไว้ก่อน
+    local args = {...}
     pcall(function()
         if remotePath then
-            remotePath:FireServer(unpack(args)) -- เอาข้อมูลมาแตกใส่
+            remotePath:FireServer(unpack(args))
         end
     end)
 end
 
 -- ==========================================
--- 3. Core Loop (แยกโซน Lobby กับ In-Game)
+-- 3. ระบบ Auto-Inject ตอนวาร์ป (Teleport)
+-- ==========================================
+pcall(function()
+    local teleportFunc = queue_on_teleport or queueonteleport or (syn and syn.queue_on_teleport)
+    if teleportFunc then
+        teleportFunc('loadstring(game:HttpGet("https://raw.githubusercontent.com/Kizera/utdNew/main/utdstr.lua?t=" .. tostring(tick())))()')
+    end
+end)
+
+-- ==========================================
+-- 4. Core Loop (แยกโซน Lobby กับ In-Game)
 -- ==========================================
 task.spawn(function()
     while task.wait(1) do
@@ -61,25 +92,26 @@ task.spawn(function()
             pcall(function()
                 local tpTarget = workspace.Lobby.ClassicPartyTeleporters.Teleporter4["Cylinder.119"]
                 if tpTarget then
+                    -- วาร์ปไปจุดเลือกด่าน
                     Player.Character.HumanoidRootPart.CFrame = tpTarget.CFrame + Vector3.new(0, 4, 0)
                 end
             end)
             
-            task.wait(1)
+            task.wait(1.5) -- หน่วงรอให้ตัวละครยืนบนแท่นให้เรียบร้อย
             
-            -- เลือกแมพ RuinedFutureCity
+            -- 1. เลือกแมพ RuinedFutureCity
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerSelectedMap"), "RuinedFutureCity")
-            task.wait(1)
+            task.wait(2) -- เพิ่มหน่วงเวลา 2 วิ ให้เซิร์ฟเวอร์เปลี่ยนแมพให้เสร็จ
             
-            -- เลือกความยาก HardDifficulty
+            -- 2. เลือกความยาก HardDifficulty
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerSelectedDifficulty"), "HardDifficulty")
-            task.wait(1)
+            task.wait(2) -- เพิ่มหน่วงเวลา 2 วิ ให้ชัวร์ว่าปรับโหมด Hard แล้วแน่นอน
             
-            -- กด Start เข้าด่าน
+            -- 3. กด Start เข้าด่าน
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerQuickstartTeleport"))
             
-            -- รอโหลดเข้าด่าน 8-10 วิ
-            task.wait(8)
+            -- รอเกมโหลดวาร์ป
+            task.wait(5)
             
         else
             -- [ โซน In-Game ]
@@ -116,10 +148,10 @@ task.spawn(function()
             -- วาง Goku (ตามโค้ดเดิมใช้ Args ซ้ำกับ Red Dragon)
             fireRemote(placeRemote, "162743126:41308", Vector3.new(-596.717529296875, 3.025526762008667, -160.88565063476562))
             
-            -- หน่วงเวลา 2 วิก่อนรีลูป ป้องกันเกมแจ้งเตือน Spam/Lag
+            -- หน่วงเวลา 2 วิก่อนรีลูป
             task.wait(2)
             
-            -- ยิง Replay ค้างไว้ตลอดเวลา เมื่อเกมจบมันจะ Replay ให้ทันที
+            -- ยิง Replay ค้างไว้ตลอดเวลา เมื่อเกมจบครบ 4 รอบตามระบบเกม มันจะเตะกลับ Lobby เอง
             fireRemote(RS:WaitForChild("Modules"):WaitForChild("GlobalInit"):WaitForChild("RemoteEvents"):WaitForChild("PlayerVoteReplay"))
         end
     end
